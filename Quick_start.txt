@@ -1,0 +1,5 @@
+cmd
+→ D:
+→ cd "Onepulse\One pulse\project-OnoPulse\Backend"
+→ venv\Scripts\activate
+→ python app.py

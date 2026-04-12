@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
+<title>OnePulse — Media Scheduler</title>
+<link rel="icon" type="image/png" href="images/onepulse.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ─────────────────────────────────────────────
+   DESIGN TOKENS
+───────────────────────────────────────────── */
+:root {
+  --radius-sm:   8px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   28px;
+  --font-main:   'Outfit', sans-serif;
+  --font-mono:   'JetBrains Mono', monospace;
+  --yt:          #FF3B30;
+  --yt-glow:     rgba(255,59,48,0.25);
+  --ig:          #E1306C;
+  --ig2:         #833AB4;
+  --ig-glow:     rgba(225,48,108,0.25);
+  --accent:      #4F6FFF;
+  --accent-glow: rgba(79,111,255,0.2);
+  --green:       #34C759;
+  --orange:      #FF9500;
+  --red:         #FF3B30;
+  --trans:       all 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  --bg:          #080A0F;
+  --bg2:         #0D1018;
+  --surface:     #111520;
+  --surface2:    #181D2E;
+  --surface3:    #1F2438;
+  --border:      rgba(255,255,255,0.07);
+  --border-2:    rgba(255,255,255,0.12);
+  --text:        #ECEEF5;
+  --text2:       #9BA3BF;
+  --text3:       #5C6380;
+  --shadow:      rgba(0,0,0,0.4);
+  --glass:       rgba(17,21,32,0.85);
+  --invert:      0;
+}
+
+/* Light Theme */
+[data-theme="light"] {
+  --bg:          #F2F4F8;
+  --bg2:         #EAECF2;
+  --surface:     #FFFFFF;
+  --surface2:    #F5F7FC;
+  --surface3:    #ECEEF5;
+  --border:      rgba(0,0,0,0.07);
+  --border-2:    rgba(0,0,0,0.12);
+  --text:        #0D1018;
+  --text2:       #4A5068;
+  --text3:       #8892B0;
+  --shadow:      rgba(0,0,0,0.08);
+  --glass:       rgba(255,255,255,0.92);
+  --invert:      1;
+}
+
+/* ─────────────────────────────────────────────
+   RESET & BASE
+───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Ambient noise */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 180px;
+}
+
+/* Ambient glow — dark only */
+[data-theme="dark"] body::after {
+  content: '';
+  position: fixed;
+  top: -200px; left: -100px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(79,111,255,0.07) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─────────────────────────────────────────────
+   LAYOUT WRAPPER
+───────────────────────────────────────────── */
+.app {
+  max-width: 520px;
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─────────────────────────────────────────────
+   HEADER
+───────────────────────────────────────────── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0 20px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.3s ease;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.logo-mark {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, #4F6FFF 0%, #E1306C 100%);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(79,111,255,0.3);
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.logo-name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  color: var(--text);
+}
+
+.logo-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text3);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Theme Toggle */
+.theme-toggle {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-2);
+  background: var(--surface2);
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: var(--trans);
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* Schedule Button */
+.btn-schedule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #4F6FFF, #7C4FFF);
+  color: white;
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--trans);
+  box-shadow: 0 4px 14px rgba(79,111,255,0.35);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-schedule:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(79,111,255,0.45);
+}
+
+.btn-schedule svg { width: 14px; height: 14px; }
+
+/* User Profile */
+.user-profile {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 30px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: var(--trans);
+  flex-shrink: 0;
+}
+
+.user-profile.visible { display: flex; }
+
+.user-profile:hover { border-color: var(--border-2); }
+
+.user-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: linear-gradient(135deg, var(--accent), var(--ig));
+  border: 2px solid var(--border-2);
+}
+
+.user-info { display: none; }
+
+.user-name-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.user-email-text {
+  font-size: 10px;
+  color: var(--text3);
+  line-height: 1.2;
+}
+
+/* Google Sign-In */
+.g-signin-wrap {
+  display: flex;
+  align-items: center;
+}
+
+/* ─────────────────────────────────────────────
+   MAIN CONTENT
+───────────────────────────────────────────── */
+.main {
+  padding: 20px 20px 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─────────────────────────────────────────────
+   PLATFORM TABS
+───────────────────────────────────────────── */
+.platform-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 5px;
+  border: 1px solid var(--border);
+  gap: 4px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-family: var(--font-main);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--trans);
+}
+
+.tab svg { width: 16px; height: 16px; }
+
+.tab.active-yt {
+  background: var(--yt);
+  color: white;
+  box-shadow: 0 4px 14px var(--yt-glow);
+}
+
+.tab.active-ig {
+  background: linear-gradient(135deg, var(--ig2), var(--ig));
+  color: white;
+  box-shadow: 0 4px 14px var(--ig-glow);
+}
+
+/* ─────────────────────────────────────────────
+   STATS STRIP
+───────────────────────────────────────────── */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 12px;
+  text-align: center;
+  transition: var(--trans);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+}
+
+.stat-card.total::after  { background: var(--accent); }
+.stat-card.sched::after  { background: var(--orange); }
+.stat-card.posted::after { background: var(--green); }
+
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--shadow); }
+
+.stat-icon {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px;
+  font-size: 14px;
+}
+
+.stat-card.total .stat-icon  { background: rgba(79,111,255,0.12); }
+.stat-card.sched .stat-icon  { background: rgba(255,149,0,0.12); }
+.stat-card.posted .stat-icon { background: rgba(52,199,89,0.12); }
+
+.stat-number {
+  font-family: var(--font-main);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.stat-card.total  .stat-number { color: var(--accent); }
+.stat-card.sched  .stat-number { color: var(--orange); }
+.stat-card.posted .stat-number { color: var(--green); }
+
+.stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* ─────────────────────────────────────────────
+   SECTION HEADER
+───────────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.section-action {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 8px;
+  transition: var(--trans);
+}
+
+.section-action:hover { background: var(--accent-glow); }
+.section-action svg { width: 13px; height: 13px; }
+
+/* ─────────────────────────────────────────────
+   POST CARDS
+───────────────────────────────────────────── */
+.posts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.post-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: var(--trans);
+  position: relative;
+  overflow: hidden;
+  animation: slideUp 0.3s ease both;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.post-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.post-card.yt::before  { background: linear-gradient(90deg, var(--yt) 0%, transparent 60%); }
+.post-card.ig::before  { background: linear-gradient(90deg, var(--ig2) 0%, var(--ig) 50%, transparent 80%); }
+
+.post-card:hover {
+  border-color: var(--border-2);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px var(--shadow);
+}
+
+.post-thumb {
+  width: 68px; height: 68px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  background: var(--surface3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  overflow: hidden;
+}
+
+.post-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+.post-info { flex: 1; min-width: 0; }
+
+.post-platform-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.post-platform-badge svg { width: 10px; height: 10px; }
+.badge-yt { background: rgba(255,59,48,0.12); color: var(--yt); }
+.badge-ig { background: rgba(225,48,108,0.12); color: var(--ig); }
+
+.post-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.2px;
+  margin-bottom: 3px;
+}
+
+.post-desc {
+  font-size: 12px;
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 8px;
+}
+
+.post-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.post-time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text3);
+  font-family: var(--font-mono);
+}
+
+.post-time svg { width: 11px; height: 11px; }
+
+.post-status {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.status-scheduled { background: rgba(255,149,0,0.12); color: var(--orange); }
+.status-posted    { background: rgba(52,199,89,0.12);  color: var(--green); }
+.status-failed    { background: rgba(255,59,48,0.12);  color: var(--red); }
+
+.post-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.post-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  font-family: var(--font-main);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--trans);
+}
+
+.post-action-btn svg { width: 11px; height: 11px; }
+.post-action-btn:hover { color: var(--text); border-color: var(--border-2); }
+.post-action-btn.publish { color: var(--green); border-color: rgba(52,199,89,0.25); }
+.post-action-btn.publish:hover { background: rgba(52,199,89,0.08); }
+.post-action-btn.delete  { color: var(--red);   border-color: rgba(255,59,48,0.25); }
+.post-action-btn.delete:hover  { background: rgba(255,59,48,0.08); }
+
+/* ─────────────────────────────────────────────
+   EMPTY STATE
+───────────────────────────────────────────── */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.empty-icon {
+  width: 64px; height: 64px;
+  background: var(--surface2);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  border: 1px solid var(--border);
+}
+
+.empty h3 { font-size: 16px; font-weight: 700; color: var(--text); }
+.empty p  { font-size: 13px; color: var(--text3); }
+
+/* ─────────────────────────────────────────────
+   MODAL / OVERLAY
+───────────────────────────────────────────── */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 200;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.overlay.open { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: 24px 20px 48px;
+  width: 100%;
+  max-width: 520px;
+  border-top: 1px solid var(--border-2);
+  animation: slideModal 0.32s cubic-bezier(0.4,0,0.2,1);
+  max-height: 94vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-2) transparent;
+}
+
+@keyframes slideModal {
+  from { transform: translateY(100%); opacity: 0.5; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.modal-handle {
+  width: 36px; height: 4px;
+  background: var(--border-2);
+  border-radius: 2px;
+  margin: 0 auto 22px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+
+.modal-close {
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--trans);
+}
+
+.modal-close:hover { color: var(--text); border-color: var(--border-2); }
+
+/* ─────────────────────────────────────────────
+   FORM ELEMENTS
+───────────────────────────────────────────── */
+.form-group { margin-bottom: 14px; }
+
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 7px;
+}
+
+.form-label svg { width: 11px; height: 11px; }
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: var(--font-main);
+  font-size: 14px;
+  font-weight: 400;
+  outline: none;
+  transition: var(--trans);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder { color: var(--text3); }
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.form-textarea { resize: vertical; min-height: 82px; line-height: 1.5; }
+.form-select option { background: var(--surface2); }
+
+/* Platform Toggle */
+.platform-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.platform-opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--trans);
+}
+
+.platform-opt svg { width: 16px; height: 16px; }
+.platform-opt.sel-yt { background: rgba(255,59,48,0.1); border-color: var(--yt); color: var(--yt); }
+.platform-opt.sel-ig { background: rgba(225,48,108,0.1); border-color: var(--ig); color: var(--ig); }
+
+/* ─────────────────────────────────────────────
+   DROP ZONE
+───────────────────────────────────────────── */
+.drop-zone {
+  border: 2px dashed rgba(79,111,255,0.3);
+  border-radius: var(--radius-lg);
+  background: rgba(79,111,255,0.03);
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--trans);
+  position: relative;
+  overflow: hidden;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drop-zone:hover { border-color: var(--accent); background: var(--accent-glow); }
+
+.drop-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  transform: scale(1.01);
+}
+
+.drop-zone.has-file {
+  border-style: solid;
+  border-color: rgba(52,199,89,0.4);
+  background: rgba(52,199,89,0.03);
+  padding: 0;
+}
+
+.drop-idle { pointer-events: none; }
+
+.drop-icon {
+  width: 40px; height: 40px;
+  background: var(--surface3);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  color: var(--accent);
+}
+
+.drop-icon svg { width: 20px; height: 20px; }
+
+.drop-main { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.drop-sub  { font-size: 11px; color: var(--text3); }
+
+.drop-preview { width: 100%; position: relative; }
+.drop-preview img, .drop-preview video {
+  width: 100%; max-height: 200px; object-fit: cover; border-radius: 18px; display: block;
+}
+
+.drop-preview-meta {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  padding: 24px 14px 14px;
+  border-radius: 0 0 18px 18px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+}
+
+.drop-preview-name { font-size: 12px; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.drop-preview-size { font-size: 11px; color: rgba(255,255,255,0.6); font-family: var(--font-mono); }
+
+.drop-remove {
+  position: absolute; top: 8px; right: 8px;
+  width: 28px; height: 28px;
+  background: rgba(0,0,0,0.6); border: none; border-radius: 50%;
+  color: white; font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10; transition: var(--trans);
+}
+
+.drop-remove:hover { background: var(--yt); }
+
+.drop-file-card { display: flex; align-items: center; gap: 14px; padding: 16px; width: 100%; }
+.drop-file-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.drop-file-info { text-align: left; flex: 1; min-width: 0; }
+.drop-file-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drop-file-type { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.drop-file-size { font-size: 11px; color: var(--green); margin-top: 2px; font-family: var(--font-mono); }
+
+/* URL Divider */
+.url-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.url-divider-line { flex: 1; height: 1px; background: var(--border); }
+.url-divider-text { font-size: 10px; color: var(--text3); font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
+
+/* ─────────────────────────────────────────────
+   AI BOX
+───────────────────────────────────────────── */
+.btn-ai {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: rgba(79,111,255,0.08);
+  border: 1px dashed rgba(79,111,255,0.35);
+  color: var(--accent);
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--trans);
+  margin-bottom: 12px;
+}
+
+.btn-ai:hover { background: var(--accent-glow); border-color: var(--accent); }
+.btn-ai svg { width: 16px; height: 16px; }
+
+.ai-box {
+  background: linear-gradient(135deg, rgba(79,111,255,0.06), rgba(225,48,108,0.04));
+  border: 1px solid rgba(79,111,255,0.18);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 14px;
+  display: none;
+}
+
+.ai-box.visible { display: block; animation: fadeIn 0.3s ease; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+.ai-box-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-box-header svg { width: 13px; height: 13px; }
+
+.ai-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 6px;
+}
+
+.ai-caption {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  background: var(--surface3);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-use-caption {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  font-family: var(--font-main);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--trans);
+  margin-bottom: 12px;
+}
+
+.btn-use-caption:hover { color: var(--accent); border-color: var(--accent); }
+.btn-use-caption svg { width: 11px; height: 11px; }
+
+.ai-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.ai-tag {
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(79,111,255,0.1);
+  border: 1px solid rgba(79,111,255,0.2);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--trans);
+  font-family: var(--font-mono);
+}
+
+.ai-tag:hover, .ai-tag.selected {
+  background: rgba(79,111,255,0.22);
+  border-color: var(--accent);
+  color: white;
+}
+
+.ai-times { display: flex; flex-direction: column; gap: 6px; }
+
+.ai-time-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--trans);
+  border: 1px solid transparent;
+}
+
+.ai-time-slot:hover, .ai-time-slot.selected {
+  border-color: var(--accent);
+  background: rgba(79,111,255,0.08);
+}
+
+.ai-time-left { display: flex; align-items: center; gap: 8px; }
+.ai-time-left svg { width: 13px; height: 13px; color: var(--text3); }
+.ai-time-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.ai-time-score { font-size: 12px; font-weight: 800; color: var(--green); font-family: var(--font-mono); }
+
+/* ─────────────────────────────────────────────
+   SUBMIT BUTTON
+───────────────────────────────────────────── */
+.btn-submit {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 15px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #4F6FFF, #7C4FFF);
+  border: none;
+  color: white;
+  font-family: var(--font-main);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: var(--trans);
+  margin-top: 10px;
+  box-shadow: 0 6px 24px rgba(79,111,255,0.35);
+  letter-spacing: -0.2px;
+}
+
+.btn-submit:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(79,111,255,0.45); }
+.btn-submit:active { transform: translateY(0); }
+.btn-submit svg { width: 18px; height: 18px; }
+
+/* ─────────────────────────────────────────────
+   TOAST
+───────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 999;
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  white-space: nowrap;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: rgba(52,199,89,0.35); }
+.toast.error   { border-color: rgba(255,59,48,0.35); }
+
+.toast-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+.toast.success .toast-icon { background: rgba(52,199,89,0.15); color: var(--green); }
+.toast.error   .toast-icon { background: rgba(255,59,48,0.15); color: var(--red); }
+
+/* ─────────────────────────────────────────────
+   LOADING
+───────────────────────────────────────────── */
+.spinner {
+  width: 20px; height: 20px;
+  border: 2.5px solid rgba(255,255,255,0.2);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.loading-overlay.show { display: flex; }
+
+.loading-card {
+  background: var(--surface2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-lg);
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 20px 48px rgba(0,0,0,0.4);
+}
+
+.loading-card .spinner { width: 28px; height: 28px; border-width: 3px; }
+.loading-card span { font-size: 14px; font-weight: 600; color: var(--text2); }
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────── */
+@media (min-width: 521px) {
+  .app { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  .overlay { padding: 0; }
+  .user-info { display: block; }
+  .user-profile { border-radius: 10px; padding: 6px 10px 6px 6px; }
+}
+
+@media (max-width: 360px) {
+  .header { padding: 0 14px; gap: 8px; }
+  .logo-text { display: none; }
+  .btn-schedule span { display: none; }
+  .btn-schedule { padding: 0 10px; }
+  .stats-strip { gap: 6px; }
+  .stat-number { font-size: 22px; }
+  .main { padding: 14px 14px 100px; }
+}
+
+@media (min-width: 768px) {
+  .stats-strip { grid-template-columns: repeat(3, 1fr); }
+  .user-info { display: block; }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 10px; }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<!-- ── GOOGLE SIGN-IN INIT ── -->
+<div id="g_id_onload"
+     data-client_id="881830355748-caipuurrasqrsg2sbef2cqs80na8bofh.apps.googleusercontent.com"
+     data-callback="handleCredentialResponse">
+</div>
+
+<div class="app">
+
+  <!-- ── HEADER ── -->
+  <header class="header">
+    <div class="logo">
+  <div class="logo-mark" style="background:none;padding:0;overflow:hidden;">
+  <img src="images/onepulse.png" alt="OnePulse Logo" 
+       style="width:36px;height:36px;object-fit:contain;border-radius:10px;"/>
+</div>
+      <div class="logo-text">
+        <div class="logo-name">OnePulse</div>
+        <div class="logo-sub">Media Scheduler</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+
+      <!-- Theme Toggle -->
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+        <span id="theme-icon">
+  <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:16px;height:16px">
+    <circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="1" x2="12" y2="3"/>
+    <line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/>
+    <line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+</span>
+      </button>
+
+      <!-- Google Sign-In Button (shown when logged out) -->
+      <div class="g_id_signin" data-type="standard" id="g-signin-btn"
+           data-theme="outline" data-size="medium" data-shape="rectangular"
+           data-text="signin_with">
+      </div>
+
+      <!-- User Profile (shown after login) -->
+      <div class="user-profile" id="user-profile" title="Signed in">
+        <img class="user-avatar" id="user-avatar" src="" alt="User"/>
+        <div class="user-info">
+          <div class="user-name-text" id="user-name">—</div>
+          <div class="user-email-text" id="user-email">—</div>
+        </div>
+      </div>
+
+      <!-- Schedule Button -->
+      <button class="btn-schedule" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Schedule</span>
+      </button>
+
+    </div>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <!-- Platform Tabs -->
+    <div class="platform-tabs">
+      <button class="tab active-yt" id="tab-yt" onclick="switchPlatform('youtube')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        YouTube
+      </button>
+      <button class="tab" id="tab-ig" onclick="switchPlatform('instagram')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        Instagram
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-strip">
+      <div class="stat-card total">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:#4F6FFF"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </div>
+        <div class="stat-number" id="stat-total">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card sched">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:#FF9500"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div class="stat-number" id="stat-scheduled">0</div>
+        <div class="stat-label">Scheduled</div>
+      </div>
+      <div class="stat-card posted">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:#34C759"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="stat-number" id="stat-posted">0</div>
+        <div class="stat-label">Posted</div>
+      </div>
+    </div>
+
+    <!-- Section Header -->
+    <div class="section-header">
+      <div class="section-title" id="posts-heading">YouTube Posts</div>
+      <button class="section-action" onclick="loadPosts()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.33"/></svg>
+        Refresh
+      </button>
+    </div>
+
+    <!-- Posts List -->
+    <div class="posts-list" id="posts-list">
+      <div class="empty">
+        <div class="empty-icon">📭</div>
+        <h3>No posts yet</h3>
+        <p>Schedule your first post to get started!</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── SCHEDULE MODAL ── -->
+<div class="overlay" id="overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">New Scheduled Post</div>
+      <button class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Platform -->
+    <div class="form-group">
+      <label class="form-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Platform
+      </label>
+      <div class="platform-toggle">
+        <button class="platform-opt sel-yt" id="opt-yt" onclick="selectPlatform('youtube')">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          YouTube
+        </button>
+        <button class="platform-opt" id="opt-ig" onclick="selectPlatform('instagram')">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          Instagram
+        </button>
+      </div>
+    </div>
+
+    <!-- Niche -->
+    <div class="form-group">
+      <label class="form-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        Niche
+      </label>
+      <select class="form-select" id="f-niche">
+        <option value="general">🌐 General</option>
+        <option value="tech">💻 Tech</option>
+        <option value="lifestyle">✨ Lifestyle</option>
+        <option value="fitness">🏋️ Fitness</option>
+        <option value="food">🍜 Food</option>
+        <option value="art">🎨 Art & Craft</option>
+      </select>
+    </div>
+
+    <!-- Title -->
+    <div class="form-group">
+      <label class="form-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Title
+      </label>
+      <input class="form-input" id="f-title" type="text" placeholder="Enter a compelling title…"/>
+    </div>
+
+    <!-- Description -->
+    <div class="form-group">
+      <label class="form-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+        Description
+      </label>
+      <textarea class="form-textarea" id="f-desc" placeholder="What's this post about?"></textarea>
+    </div>
+
+    <!-- Media Upload -->
+    <div class="form-group">
+      <label class="form-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Media File
+      </label>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('f-file').click()"
+           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <input type="file" id="f-file" accept="*/*" style="display:none" onchange="handleFileSelect(event)"/>
+        <div class="drop-idle" id="drop-idle">
+          <div class="drop-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          </div>
+          <div class="drop-main">Drop your file here</div>
+          <div class="drop-sub">or tap to browse — MP4, JPG, PNG, MOV, GIF…</div>
+        </div>
+        <div class="drop-preview" id="drop-preview" style="display:none"></div>
+      </div>
+      <div class="url-divider">
+        <div class="url-divider-line"></div>
+        <span class="url-divider-text">or paste URL</span>
+        <div class="url-divider-line"></div>
+      </div>
+      <input class="form-input" id="f-image" type="url" placeholder="https://…"/>
+    </div>
+
+    <!-- AI Recommend -->
+    <button class="btn-ai" onclick="getAIRecommendations()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Generate AI Captions, Hashtags & Best Times
+    </button>
+
+    <!-- AI Box -->
+    <div class="ai-box" id="ai-box">
+      <div class="ai-box-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        AI Recommendations
+      </div>
+
+      <div class="ai-section-label">Suggested Caption</div>
+      <div class="ai-caption" id="ai-caption"></div>
+      <button class="btn-use-caption" onclick="useCaption()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Use this caption
+      </button>
+
+      <div class="ai-section-label">Hashtags — tap to add</div>
+      <div class="ai-tags" id="ai-tags"></div>
+
+      <div class="ai-section-label" style="margin-top:12px">Best Times to Post</div>
+      <div class="ai-times" id="ai-times"></div>
+    </div>
+
+    <!-- Caption Override -->
+    <div class="form-group">
+      <label class="form-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Caption <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(optional override)</span>
+      </label>
+      <textarea class="form-textarea" id="f-caption" placeholder="Leave blank to auto-generate…"></textarea>
+    </div>
+
+    <!-- Hashtags Override -->
+    <div class="form-group">
+      <label class="form-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+        Hashtags <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(optional override)</span>
+      </label>
+      <input class="form-input" id="f-hashtags" type="text" placeholder="#hashtag1 #hashtag2 …"/>
+    </div>
+
+    <!-- Schedule Time -->
+    <div class="form-group">
+      <label class="form-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Schedule Time <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(auto if blank)</span>
+      </label>
+      <input class="form-input" id="f-time" type="datetime-local"/>
+    </div>
+
+    <button class="btn-submit" onclick="submitPost()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Schedule Post
+    </button>
+
+  </div>
+</div>
+
+<!-- ── LOADING ── -->
+<div class="loading-overlay" id="loading">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <span id="loading-msg">Processing…</span>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast">
+  <div class="toast-icon" id="toast-icon"></div>
+  <span id="toast-msg"></span>
+</div>
+
+<script>
+/* ─── THEME ─── */
+let isDark = true;
+
+function toggleTheme() {
+  isDark = !isDark;
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  document.getElementById('theme-icon').innerHTML = isDark ? `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:16px;height:16px">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>` : `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:16px;height:16px">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>`;
+}
+
+/* ─── GOOGLE AUTH ─── */
+function handleCredentialResponse(response) {
+  try {
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    const name    = payload.name  || 'User';
+    const email   = payload.email || '';
+    const picture = payload.picture || '';
+
+    // Show profile, hide sign-in button
+    document.getElementById('user-name').textContent  = name;
+    document.getElementById('user-email').textContent = email;
+    if (picture) document.getElementById('user-avatar').src = picture;
+    document.getElementById('user-profile').classList.add('visible');
+    document.getElementById('g-signin-btn').style.display = 'none';
+
+    showToast('Welcome, ' + name.split(' ')[0] + '!', 'success');
+  } catch(e) {
+    console.error('Auth error:', e);
+  }
+}
+
+/* ─── DROP ZONE ─── */
+let uploadedFile = null;
+
+function handleDragOver(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('drop-zone').classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+function getFileIcon(type) {
+  if (type.startsWith('image/')) return { icon: '🖼', color: 'rgba(79,111,255,0.15)' };
+  if (type.startsWith('video/')) return { icon: '🎬', color: 'rgba(255,59,48,0.15)' };
+  if (type.startsWith('audio/')) return { icon: '🎵', color: 'rgba(52,199,89,0.15)' };
+  if (type.includes('pdf'))      return { icon: '📄', color: 'rgba(255,149,0,0.15)' };
+  return { icon: '📎', color: 'rgba(255,255,255,0.08)' };
+}
+
+function processFile(file) {
+  uploadedFile = file;
+  const zone    = document.getElementById('drop-zone');
+  const idle    = document.getElementById('drop-idle');
+  const preview = document.getElementById('drop-preview');
+
+  zone.classList.add('has-file');
+  idle.style.display    = 'none';
+  preview.style.display = 'block';
+
+  const size = formatBytes(file.size);
+  const name = file.name;
+
+  if (file.type.startsWith('image/')) {
+    const url = URL.createObjectURL(file);
+    preview.innerHTML = `
+      <img src="${url}" alt="${name}"/>
+      <div class="drop-preview-meta">
+        <span class="drop-preview-name">🖼 ${name}</span>
+        <span class="drop-preview-size">${size}</span>
+      </div>
+      <button class="drop-remove" onclick="removeFile(event)">✕</button>`;
+    document.getElementById('f-image').value = url;
+  } else if (file.type.startsWith('video/')) {
+    const url = URL.createObjectURL(file);
+    preview.innerHTML = `
+      <video src="${url}" controls muted playsinline></video>
+      <div class="drop-preview-meta">
+        <span class="drop-preview-name">🎬 ${name}</span>
+        <span class="drop-preview-size">${size}</span>
+      </div>
+      <button class="drop-remove" onclick="removeFile(event)">✕</button>`;
+  } else {
+    const { icon, color } = getFileIcon(file.type);
+    const ext = name.split('.').pop().toUpperCase();
+    preview.innerHTML = `
+      <div class="drop-file-card">
+        <div class="drop-file-icon" style="background:${color}">${icon}</div>
+        <div class="drop-file-info">
+          <div class="drop-file-name">${name}</div>
+          <div class="drop-file-type">${ext} · ${file.type || 'unknown'}</div>
+          <div class="drop-file-size">✅ ${size} ready</div>
+        </div>
+        <button class="drop-remove" style="position:relative;top:auto;right:auto" onclick="removeFile(event)">✕</button>
+      </div>`;
+  }
+}
+
+function removeFile(e) {
+  e.stopPropagation();
+  uploadedFile = null;
+  const zone    = document.getElementById('drop-zone');
+  const idle    = document.getElementById('drop-idle');
+  const preview = document.getElementById('drop-preview');
+  zone.classList.remove('has-file');
+  idle.style.display    = 'block';
+  preview.style.display = 'none';
+  preview.innerHTML     = '';
+  document.getElementById('f-file').value  = '';
+  document.getElementById('f-image').value = '';
+}
+
+/* ─── CONFIG ─── */
+const API = 'http://localhost:5000/api';
+
+/* ─── STATE ─── */
+let currentPlatform = 'youtube';
+let selectedScheduleTime = null;
+let aiHashtags = [];
+
+/* ─── UTILS ─── */
+function showLoading(msg = 'Processing…') {
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('loading-msg').textContent = msg;
+}
+
+function hideLoading() {
+  document.getElementById('loading').classList.remove('show');
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-icon').textContent = type === 'success' ? '✓' : '✕';
+  document.getElementById('toast-msg').textContent  = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Request failed');
+  }
+  return res.json();
+}
+
+/* ─── PLATFORM SWITCH ─── */
+function switchPlatform(platform) {
+  currentPlatform = platform;
+  document.getElementById('tab-yt').className = 'tab' + (platform === 'youtube' ? ' active-yt' : '');
+  document.getElementById('tab-ig').className = 'tab' + (platform === 'instagram' ? ' active-ig' : '');
+  document.getElementById('posts-heading').textContent =
+    platform === 'youtube' ? 'YouTube Posts' : 'Instagram Posts';
+  loadPosts();
+  loadStats();
+}
+
+/* ─── STATS ─── */
+async function loadStats() {
+  try {
+    const s = await apiFetch(`/stats?platform=${currentPlatform}`);
+    document.getElementById('stat-total').textContent     = s.total;
+    document.getElementById('stat-scheduled').textContent = s.scheduled;
+    document.getElementById('stat-posted').textContent    = s.posted;
+  } catch(e) { console.warn('Stats error:', e.message); }
+}
+
+/* ─── POSTS ─── */
+async function loadPosts() {
+  try {
+    const posts = await apiFetch(`/posts?platform=${currentPlatform}`);
+    renderPosts(posts);
+  } catch(e) {
+    console.warn('Posts error:', e.message);
+    renderDemoPosts();
+  }
+}
+
+function renderDemoPosts() {
+  const demoPosts = [
+    { id: 'demo1', platform: currentPlatform, title: "Let's make this crochet charm 🌸",
+      description: "Making this beautiful charm for my audience...", hashtags: "#crochet #handmade",
+      scheduled_time: new Date().toISOString(), status: 'scheduled',
+      image_url: 'https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?w=200' },
+  ];
+  renderPosts(demoPosts, true);
+}
+
+function renderPosts(posts, isDemo = false) {
+  loadStats();
+  const el = document.getElementById('posts-list');
+  if (!posts.length) {
+    el.innerHTML = `<div class="empty">
+      <div class="empty-icon">📭</div>
+      <h3>No posts yet</h3>
+      <p>Schedule your first post to get started!</p>
+    </div>`;
+    return;
+  }
+
+  const ytIcon = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:10px;height:10px"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`;
+  const igIcon = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:10px;height:10px"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`;
+  const clockIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+
+  el.innerHTML = posts.map((p, i) => {
+    const isYT = p.platform === 'youtube';
+    const dt   = p.scheduled_time ? new Date(p.scheduled_time) : null;
+    const timeStr = dt ? dt.toLocaleString('en-US', { month: 'short', day: 'numeric',
+      year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+    const thumb = p.image_url
+      ? `<img src="${p.image_url}" onerror="this.parentElement.innerHTML='${isYT ? '▶' : '📸'}'" alt="thumb"/>`
+      : (isYT ? '▶' : '📸');
+
+    return `
+    <div class="post-card ${isYT ? 'yt' : 'ig'}" style="animation-delay:${i*0.05}s">
+      <div class="post-thumb">${thumb}</div>
+      <div class="post-info">
+        <div class="post-platform-badge badge-${isYT ? 'yt' : 'ig'}">
+          ${isYT ? ytIcon + ' YouTube' : igIcon + ' Instagram'}
+        </div>
+        <div class="post-title">${p.title}</div>
+        <div class="post-desc">${p.description || p.hashtags || '—'}</div>
+        <div class="post-footer">
+          <div class="post-time">${clockIcon} ${timeStr}</div>
+          <div class="post-status status-${p.status}">${p.status}</div>
+        </div>
+        ${!isDemo ? `<div class="post-actions">
+          ${p.status === 'scheduled' ? `
+          <button class="post-action-btn publish" onclick="publishNow(${p.id})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:11px;height:11px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Post Now
+          </button>` : ''}
+          <button class="post-action-btn delete" onclick="deletePost(${p.id})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:11px;height:11px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Delete
+          </button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ─── PUBLISH / DELETE ─── */
+async function publishNow(postId) {
+  if (!confirm('Post this immediately?')) return;
+  showLoading('Publishing…');
+  try {
+    const r = await apiFetch(`/posts/${postId}/publish`, { method: 'POST' });
+    showToast(r.success ? 'Posted successfully!' : 'Publish failed. Try again.', r.success ? 'success' : 'error');
+    loadPosts();
+  } catch(e) {
+    showToast(e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+async function deletePost(postId) {
+  if (!confirm('Delete this post?')) return;
+  try {
+    await apiFetch(`/posts/${postId}`, { method: 'DELETE' });
+    showToast('Post deleted');
+    loadPosts();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+/* ─── MODAL ─── */
+function openModal() {
+  document.getElementById('overlay').classList.add('open');
+  selectPlatform(currentPlatform);
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('ai-box').classList.remove('visible');
+  ['f-title','f-desc','f-image','f-caption','f-hashtags','f-time'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  selectedScheduleTime = null;
+  aiHashtags = [];
+  removeFile({ stopPropagation: () => {} });
+}
+
+function handleOverlayClick(e) {
+  if (e.target.id === 'overlay') closeModal();
+}
+
+function selectPlatform(platform) {
+  document.getElementById('opt-yt').className = 'platform-opt' + (platform === 'youtube' ? ' sel-yt' : '');
+  document.getElementById('opt-ig').className = 'platform-opt' + (platform === 'instagram' ? ' sel-ig' : '');
+}
+
+function getModalPlatform() {
+  return document.getElementById('opt-yt').classList.contains('sel-yt') ? 'youtube' : 'instagram';
+}
+
+/* ─── AI RECOMMENDATIONS ─── */
+async function getAIRecommendations() {
+  const platform = getModalPlatform();
+  const niche    = document.getElementById('f-niche').value;
+  const title    = document.getElementById('f-title').value || 'My Post';
+  const desc     = document.getElementById('f-desc').value  || '';
+
+  showLoading('AI is crafting recommendations…');
+  try {
+    const data = await apiFetch('/ai/recommend', {
+      method: 'POST',
+      body: JSON.stringify({ platform, niche, title, description: desc })
+    });
+
+    document.getElementById('ai-caption').textContent = data.caption;
+
+    aiHashtags = data.hashtags || [];
+    document.getElementById('ai-tags').innerHTML = aiHashtags.map(h =>
+      `<span class="ai-tag" onclick="toggleHashtag(this, '${h}')">${h}</span>`
+    ).join('');
+
+    document.getElementById('ai-times').innerHTML = (data.best_times || []).slice(0, 4).map((t, i) =>
+      `<div class="ai-time-slot" id="ts-${i}" onclick="selectTimeSlot(this, '${t.datetime}')">
+        <div class="ai-time-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="ai-time-label">${t.label}</span>
+        </div>
+        <span class="ai-time-score">${Math.round(t.score * 100)}%</span>
+      </div>`
+    ).join('');
+
+    document.getElementById('ai-box').classList.add('visible');
+  } catch(e) {
+    showToast('AI unavailable — ensure backend is running', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+function useCaption() {
+  const caption = document.getElementById('ai-caption').textContent;
+  document.getElementById('f-caption').value = caption;
+  showToast('Caption applied!');
+}
+
+function toggleHashtag(el, tag) {
+  const input = document.getElementById('f-hashtags');
+  if (el.classList.contains('selected')) {
+    el.classList.remove('selected');
+    input.value = input.value.replace(tag, '').replace(/\s+/g, ' ').trim();
+  } else {
+    el.classList.add('selected');
+    input.value = (input.value + ' ' + tag).trim();
+  }
+}
+
+function selectTimeSlot(el, datetime) {
+  document.querySelectorAll('.ai-time-slot').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedScheduleTime = datetime;
+  const d   = new Date(datetime);
+  const pad = n => String(n).padStart(2, '0');
+  const local = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  document.getElementById('f-time').value = local;
+}
+
+/* ─── SUBMIT ─── */
+async function submitPost() {
+  const platform     = getModalPlatform();
+  const title        = document.getElementById('f-title').value.trim();
+  const desc         = document.getElementById('f-desc').value.trim();
+  const caption      = document.getElementById('f-caption').value.trim();
+  const hashtags     = document.getElementById('f-hashtags').value.trim();
+  const image        = document.getElementById('f-image').value.trim();
+  const niche        = document.getElementById('f-niche').value;
+  const timeInput    = document.getElementById('f-time').value;
+  const scheduled_time = timeInput ? new Date(timeInput).toISOString() : null;
+
+  if (!title) { showToast('Please enter a title', 'error'); return; }
+
+  showLoading('Scheduling post…');
+  try {
+    await apiFetch('/posts', {
+      method: 'POST',
+      body: JSON.stringify({ platform, title, description: desc, caption, hashtags,
+        image_url: image, niche, scheduled_time })
+    });
+    showToast('Post scheduled successfully!');
+    closeModal();
+    if (platform !== currentPlatform) switchPlatform(platform);
+    else loadPosts();
+  } catch(e) {
+    showToast(e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+/* ─── INIT ─── */
+loadPosts();
+loadStats();
+setInterval(() => { loadPosts(); loadStats(); }, 60000);
+</script>
+</body>
+</html>
