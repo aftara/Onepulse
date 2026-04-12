@@ -1,7 +1,14 @@
 /* ═══════════════════════════════════════════
    OnePulse — script.js
    ═══════════════════════════════════════════ */
-
+fetch("https://onepulse.onrender.com/api/posts")
+  .then(res => res.json())
+  .then(data => {
+    console.log("Backend data:", data);
+  })
+  .catch(err => {
+    console.error("Error:", err);
+  });
 // ── CONFIG ──
 const API = 'http://localhost:5000/api';
 
