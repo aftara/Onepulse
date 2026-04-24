@@ -10,7 +10,7 @@ fetch("https://onepulse.onrender.com/api/posts")
     console.error("Error:", err);
   });
 // ── CONFIG ──
-const API = 'http://localhost:5000/api';
+const API = 'https://onepulse.onrender.com/api';
 
 // ── STATE ──
 let currentPlatform      = 'youtube';
